@@ -128,7 +128,7 @@ document.getElementById("buyEnergy").addEventListener("click", async () => {
     return;
   }
 
-  if (isNaN(amount) || amount < 50000) {
+  if (isNaN(amount) || amount < 100) {
     alert("❗ Minimum 50,000 energy required.");
     return;
   }
@@ -326,7 +326,7 @@ detectTronLink();
 // Central pricing
 const pricing = {
   energy: {
-    1: 0.0001,3: 0.000165,5: 0.000275,10: 0.00055,15: 0.00075,30: 0.00135
+    1: 0.00001,3: 0.000165,5: 0.000275,10: 0.00055,15: 0.00075,30: 0.00135
   },
   bandwidth: { 1: 1.56 / 1000, 3: 4.095 / 1000, 5: 6.825 / 1000, 10: 13.65 / 1000, 15: 20.475 / 1000, 30: 40.95 / 1000 }
 };
@@ -345,7 +345,7 @@ function validateAndCalc() {
 
   let valid = true;
   if (!type) valid = false;
-  if (!amt || (type === "energy" && amt < 50000) || (type === "bandwidth" && amt < 1000)) valid = false;
+  if (!amt || (type === "energy" && amt < 100) || (type === "bandwidth" && amt < 1000)) valid = false;
   if (!days) valid = false;
   if (toAddr.length !== 34) valid = false;
 
