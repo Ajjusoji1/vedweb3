@@ -65,7 +65,7 @@ const bandwidthPrices = {
 };
 
 const energyPrices = {
-  1: 0.0001,
+  1: 0.00001,
   3: 0.000165,
   5: 0.000275,
   10: 0.00055,
