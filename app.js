@@ -128,8 +128,8 @@ document.getElementById("buyEnergy").addEventListener("click", async () => {
     return;
   }
 
-  if (isNaN(amount) || amount < 100) {
-    alert("❗ Minimum 100 energy required.");
+  if (isNaN(amount) || amount < 50000) {
+    alert("❗ Minimum 50000 energy required.");
     return;
   }
 
@@ -345,7 +345,7 @@ function validateAndCalc() {
 
   let valid = true;
   if (!type) valid = false;
-  if (!amt || (type === "energy" && amt < 100) || (type === "bandwidth" && amt < 1000)) valid = false;
+  if (!amt || (type === "energy" && amt < 50000) || (type === "bandwidth" && amt < 1000)) valid = false;
   if (!days) valid = false;
   if (toAddr.length !== 34) valid = false;
 
