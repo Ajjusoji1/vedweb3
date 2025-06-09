@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VedWeb3</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="ticker-container">
+    <div class="ticker" id="newsTicker">
+      <!-- Auto-filled by JS -->
+    </div>
+  </div>
+  
+  <h1>🚀 Welcome to VedWeb3 Project 🚀</h1>
+
+  <div id="trxPriceCard" class="trx-card">📈 TRX Price: Loading...</div>
+
+  <button id="connectWallet">Connect TronLink Wallet</button>
+  <button onclick="checkMyEnergy()">🔍 Check My Energy in Contract</button>
+
+
+  
+<!-- Card -->
+  <div class="card-container">
+
+    <!-- Bandwidth Card -->
+    <div class="card">
+      <h2>📶 Bandwidth Rent</h2>
+      <input id="bandwidthAmount" placeholder="Bandwidth amount (min 1000)">
+      <select id="bandwidthDays">
+        <option value="1">1 Day</option>
+        <option value="3">3 Day</option>
+        <option value="5">5 Day</option>
+        <option value="10">10 Day</option>
+        <option value="15">15 Day</option>
+        <option value="30">30 Day</option>
+      </select>
+      <p id="bandwidthPriceDisplay"></p>
+      <button id="buyBandwidth">📶Buy Bandwidth</button>
+      <button id="checkBandwidth">📶Check Bandwidth Balance</button>
+      <p id="balanceDisplay">📶Your Bandwidth Balance: 0 points</p>
+      
+
+    </div>
+
+    <!-- Energy Card -->
+    <div class="card">
+      <h2>⚡ Energy Rent</h2>
+      <input id="energyAmount" placeholder="Energy amount (min 50000)">
+      <select id="energyDays">
+        <option value="1">1 Day</option>
+        <option value="3">3 Day</option>
+        <option value="5">5 Day</option>
+        <option value="10">10 Day</option>
+        <option value="15">15 Day</option>
+        <option value="30">30 Day</option>
+      </select>
+      <p id="energyPriceDisplay"></p>
+      <button id="buyEnergy">⚡Buy Energy</button>
+      <button id="checkEnergy">⚡Check Energy Balance</button>
+      <p id="energyDisplay">⚡Your Energy Balance: 0 units</p>
+      
+
+    </div>
+    <!-- Storage Card -->
+    <div class="card">
+        <h2>📝 Other Wallet</h2>
+        <label>Selected:</label>
+        <select id="finalType">
+          <option value="energy">Energy Rent</option> 
+          <option value="bandwidth">Bandwidth Rent</option>
+        </select>
+      
+        <label>Amount:</label>
+        <input id="finalAmount"  placeholder="Energy or Bandwidth Amount">
+      
+        <label>Days:</label>
+        <select id="finalDays">
+            <option value="1">1 Day</option>
+            <option value="3">3 Days</option>
+            <option value="5">5 Days</option>
+            <option value="10">10 Days</option>
+            <option value="15">15 Days</option>
+            <option value="30">30 Days</option>
+        </select>
+      
+        <label>To Address:</label>
+        <input id="finalToAddress" placeholder="Recipient Address">
+      
+        <p>💰 Total TRX: <span id="finalTotal">-</span></p>
+      
+        <button id="finalDepositBtn" disabled>💸 Deposit</button>
+        <p id="finalTimer" style="color:red;font-weight:bold;"></p>
+      </div>
+      
+      <!-- Popup -->
+      <div id="depositPopup" class="popup hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center;"></div>
+        <h3>📤 Send TRX to:</h3>
+        <button onclick="closePopup()" style="background: none; border: none; color: white; font-size: 20px;">❌ </button> 
+        <p id="platformWallet">TMvfDAN4NNWhRCwbHZqj2LvQptHZQJE6gA</p>
+
+        <button onclick="copyPlatformWallet()">📋 Copy Address</button>
+      
+        <label>Your Deposit Address:</label>
+        <input id="userDepositAddress" placeholder="Your sending wallet">
+      
+        <button onclick="confirmDeposit()">✅ Confirm</button>
+      </div>
+      
+  </div>
+
+<br>
+  <div class="hero-banner">
+    <h1>🚀 Discover the Tron Energy vedweb3!</h1>
+    <p>Rent Energy or Bandwidth at unbeatable prices. Fast, secure & fully decentralized!</p>
+    <p>Join our community and start optimizing your Tron transactions today!</p>
+    <p> 
+      <strong>Note:</strong> For anyone send real TRX or any other tokens. 
+      <br>For any issues, please contact our support team.
+    </p>
+  </div>
+  
+
+
+  
+  <footer class="footer">
+    <h3>🔗 Quick Links</h3>
+    <ul>
+      <li><a href="/faq.html">FAQ</a></li>
+      <li><a href="mailto:support@vedweb3.com">Email Support</a></li>
+      <li><a href="https://t.me/yourTelegramSupport" target="_blank">Telegram Support</a></li>
+      <li><a href="https://t.me/yourChannel" target="_blank">Telegram Channel</a></li>
+      <li><a href="https://twitter.com/yourTwitter" target="_blank">Twitter</a></li>
+      <li><a href="https://medium.com/@yourMedium" target="_blank">Medium</a></li>
+      <li><a href="/blog.html">Blog</a></li>
+      <li><a href="Terms & conditions.html">Terms & Conditions</a></li>
+    </ul>
+  </footer>
+  
+
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
