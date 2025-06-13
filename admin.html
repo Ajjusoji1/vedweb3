@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
+      authDomain: "veddev-design.firebaseapp.com",
+      databaseURL: "https://veddev-design-default-rtdb.firebaseio.com/",
+      projectId: "veddev-design",
+      storageBucket: "veddev-design.appspot.com",
+      messagingSenderId: "1005840455508",
+      appId: "1:1005840455508:web:944c6890fbf82167e55ac1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🔥 Load Sales
+    const salesTable = document.getElementById("salesTableBody");
+    const refSales = ref(db, "pendingSales");
+
+    onValue(refSales, (snapshot) => {
+      salesTable.innerHTML = "";
+      const data = snapshot.val();
+      for (const id in data) {
+        const sale = data[id];
+        const row = document.createElement("tr");
+        row.innerHTML =
+          `<td>${id}</td>
+           <td>${sale.saleType}</td>
+           <td>${sale.wallet}</td>
+           <td>${sale.amount}</td>
+           <td>${sale.trxPaid}</td>
+           <td>${sale.status}</td>
+           <td><button onclick="markCompleted('${id}')">✔️ Complete</button></td>`;
+        salesTable.appendChild(row);
+      }
+    });
+
+    window.markCompleted = (id) => {
+      const saleRef = ref(db, "pendingSales/" + id);
+      update(saleRef, { status: "completed", manuallyClosed: true });
+      alert("Marked as completed");
+    };
+
+    // 📦 Load Stakes
+    const stakeTable = document.getElementById("stakeTableBody");
+    const refStakes = ref(db, "stakes");
+
+    onValue(refStakes, (snapshot) => {
+      stakeTable.innerHTML = "";
+      const data = snapshot.val();
+      if (!data) return;
+      Object.values(data).forEach(stake => {
+        const tr = document.createElement("tr");
+        const created = new Date(stake.createdAt).toLocaleString();
+        tr.innerHTML = `
+          <td>${stake.wallet}</td>
+          <td>${stake.amount} TRX</td>
+          <td>${stake.days}</td>
+          <td>${stake.reward} TRX</td>
+          <td>${created}</td>
+          <td>${stake.claimed ? "✅ Claimed" : "⏳ Pending"}</td>`;
+        stakeTable.appendChild(tr);
+      });
+    });
+  </script>
+
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 2rem;
+    }
+    th, td {
+      border: 1px solid #555;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #222;
+      color: #00ffff;
+    }
+    td {
+      background: #111;
+      color: #fff;
+    }
+    button {
+      padding: 5px 10px;
+      cursor: pointer;
+      background: #00aaff;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>🔥 Admin Panel</h2>
+
+  <h3>🧾 Pending Sales</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Wallet</th>
+        <th>Amount</th>
+        <th>TRX</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="salesTableBody">
+      <!-- Sales go here -->
+    </tbody>
+  </table>
+
+  <h3>📜 Stakes</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Wallet</th>
+        <th>Amount</th>
+        <th>Days</th>
+        <th>Reward</th>
+        <th>Created</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="stakeTableBody">
+      <!-- Stakes go here -->
+    </tbody>
+  </table>
+</body>
+</html>

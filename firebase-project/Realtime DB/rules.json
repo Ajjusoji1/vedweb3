@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "pendingSales": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "stakes": {
+      "$stakeId": {
+        ".read": "auth != null && auth.uid === data.child('wallet').val()",
+        ".write": "auth != null && auth.uid === newData.child('wallet').val()"
+      }
+    }
+  }
+}
