@@ -1,9 +1,27 @@
 
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
+  authDomain: "veddev-design.firebaseapp.com",
+  databaseURL: "https://veddev-design-default-rtdb.firebaseio.com/",
+  projectId: "veddev-design",
+  storageBucket: "veddev-design.appspot.com",
+  messagingSenderId: "1005840455508",
+  appId: "1:1005840455508:web:944c6890fbf82167e55ac1",
+  measurementId: "G-JVCYDNDW7L"
+};
+
+
+
+
+// Initialize TronLink
+
 let tronWeb;
 let trxPrice = 0;
-let latestEnergyTRX = 0;
-let latestBandwidthTRX = 0;
 let depositTimer;
+let selectedWallet = ""; // wallet used in transaction
+
 const ownerAddress = 'TMvfDAN4NNWhRCwbHZqj2LvQptHZQJE6gA'; // Replace with your address
 
 
@@ -31,9 +49,9 @@ priceData.forEach(item => {
 window.addEventListener("load", async () => {
   if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
     tronWeb = window.tronWeb;
-    console.log("TronLink initiated");
+    console.log("✅ TronLink connected:", tronWeb.defaultAddress.base58);
   } else {
-    console.warn("Waiting for TronLink...");
+    console.warn("⏳ Waiting for TronLink...");
   }
 });
 
@@ -49,15 +67,55 @@ document.getElementById("connectWallet").addEventListener("click", async () => {
   }
 });
 
-// 🔄 On load: detect TronLink
-window.addEventListener("load", () => {
-  if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-    tronWeb = window.tronWeb;
-    console.log("TronLink connected:", tronWeb.defaultAddress.base58);
+document.getElementById("connectWallet").addEventListener("click", async () => {
+  if (window.tronWeb && window.tronWeb.ready) {
+    const address = window.tronWeb.defaultAddress.base58;
+    document.getElementById("walletStatus").innerText = "Connected: " + address;
   } else {
-    console.warn("Waiting for TronLink...");
+    alert("Please install or open TronLink or compatible wallet");
   }
 });
+
+window.addEventListener("load", () => {
+  if (window.tronWeb && window.tronWeb.ready) {
+    document.getElementById("walletStatus").innerText = "Wallet detected";
+  }
+});
+
+
+// 🔄 On load: detect TronLink
+document.getElementById("connectWallet").addEventListener("click", () => {
+  if (window.tronWeb && window.tronWeb.ready) {
+    tronWeb = window.tronWeb;
+    alert("Wallet connected: " + tronWeb.defaultAddress.base58);
+  } else {
+    alert("Please install or unlock TronLink wallet!");
+  }
+});
+
+window.addEventListener("load", () => {
+  const savedWallets = JSON.parse(localStorage.getItem("vedWallets") || "[]");
+  const select = document.getElementById("walletSelect");
+
+  savedWallets.forEach(addr => {
+    const opt = document.createElement("option");
+    opt.value = addr;
+    opt.text = addr;
+    select.appendChild(opt);
+  });
+
+  select.addEventListener("change", () => {
+    const selected = select.value;
+    if (selected === "auto") {
+      selectedWallet = tronWeb.defaultAddress.base58;
+    } else {
+      selectedWallet = selected;
+    }
+    console.log("✅ Selected wallet:", selectedWallet);
+  });
+});
+
+
 
 // Price Tables
 const bandwidthPrices = {
@@ -118,60 +176,222 @@ function updateEnergyPrice() {
   }
 }
 
-// ⚡ Buy Energy
+// ⚡ Buy Energy (સુધારેલું ફંક્શન)
+
+let latestEnergyTRX = 10;
+let latestBandwidthTRX = 5;
+
 document.getElementById("buyEnergy").addEventListener("click", async () => {
-  const amount = parseFloat(document.getElementById("energyAmount").value);
-  const days = document.getElementById("energyDays").value;
+  const amount = parseInt(document.getElementById("energyAmount").value);
+  const days = parseInt(document.getElementById("energyDays").value);
+  const wallet = window.tronWeb?.defaultAddress?.base58 || "unknown";
 
-  if (!window.tronWeb || !tronWeb.defaultAddress.base58) {
-    alert("❗ Please connect TronLink wallet.");
-    return;
-  }
-
-  if (isNaN(amount) || amount < 50000) {
-    alert("❗ Minimum 50000 energy required.");
-    return;
-  }
-
-  const totalSun = tronWeb.toSun(latestEnergyTRX);
+  const sale = {
+    saleType: "energy",
+    wallet,
+    amount,
+    days,
+    trxPaid: latestEnergyTRX,
+    status: "pending",
+    createdAt: Date.now()
+  };
 
   try {
-    const contract = await tronWeb.contract().at(ownerAddress);
-await contract.buyEnergy(amount, days).send({ callValue: totalSun });
-
-    alert(`✅ Energy purchase: ${amount} for ${days} day(s)`);
-  } catch (err) {
-    console.error(err);
-    alert("❌ Energy transaction failed!");
+    await push(ref(db, "pendingSales"), sale);
+    alert("✅ Energy purchase saved");
+  } catch (e) {
+    alert("❌ Error: " + e.message);
   }
 });
 
-// 📶 Buy Bandwidth
+
+
+
+
+// 📶 Buy Bandwidth (સુધારેલું ફંક્શન)
 document.getElementById("buyBandwidth").addEventListener("click", async () => {
-  const amount = parseFloat(document.getElementById("bandwidthAmount").value);
-  const days = document.getElementById("bandwidthDays").value;
+  const amount = parseInt(document.getElementById("bandwidthAmount").value);
+  const days = parseInt(document.getElementById("bandwidthDays").value);
+  const wallet = window.tronWeb?.defaultAddress?.base58 || "unknown";
 
-  if (!window.tronWeb || !tronWeb.defaultAddress.base58) {
-    alert("❗ Please connect TronLink wallet.");
-    return;
-  }
-
-  if (isNaN(amount) || amount < 1000) {
-    alert("❗ Minimum 1000 bandwidth required.");
-    return;
-  }
-
-  const totalSun = tronWeb.toSun(latestBandwidthTRX);
+  const sale = {
+    saleType: "bandwidth",
+    wallet,
+    amount,
+    days,
+    trxPaid: latestBandwidthTRX,
+    status: "pending",
+    createdAt: Date.now()
+  };
 
   try {
-    await contract.buyBandwidth(amount, days).send({ callValue: totalSun });
-
-    alert(`✅ Bandwidth purchase: ${amount} for ${days} day(s)`);
-  } catch (err) {
-    console.error(err);
-    alert("❌ Bandwidth transaction failed!");
+    await push(ref(db, "pendingSales"), sale);
+    alert("✅ Bandwidth purchase saved");
+  } catch (e) {
+    alert("❌ Error: " + e.message);
   }
 });
+
+
+
+ 
+// other wallet section
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const pricing = {
+  energy: { 1: 0.0001, 3: 0.000165, 5: 0.000275, 10: 0.00055, 15: 0.00075, 30: 0.00135 },
+  bandwidth: { 1: 0.00156, 3: 0.004095, 5: 0.006825, 10: 0.01365, 15: 0.020475, 30: 0.04095 },
+  staking: { 1: 0.1, 3: 0.25, 5: 0.35, 10: 0.6, 15: 0.8, 30: 1.2 }
+};
+
+const typeSel = document.getElementById("typeSelect");
+const amtInp = document.getElementById("amountInput");
+const daySel = document.getElementById("daysSelect");
+const targetInp = document.getElementById("targetWallet");
+const totalOut = document.getElementById("totalTRX");
+const btn = document.getElementById("confirmBtn");
+
+function updateTRX() {
+  const type = typeSel.value;
+  const amt = parseFloat(amtInp.value);
+  const day = parseInt(daySel.value);
+  if (!isNaN(amt) && pricing[type][day]) {
+    const total = amt * pricing[type][day];
+    totalOut.textContent = `TRX: ${total.toFixed(3)}`;
+    return total;
+  }
+  totalOut.textContent = "TRX: -";
+  return null;
+}
+
+amtInp.addEventListener("input", updateTRX);
+daySel.addEventListener("change", updateTRX);
+typeSel.addEventListener("change", updateTRX);
+
+btn.addEventListener("click", async () => {
+  const type = typeSel.value;
+  const amt = parseFloat(amtInp.value);
+  const day = parseInt(daySel.value);
+  const wallet = targetInp.value.trim();
+
+  if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+    return alert("Connect TronLink first.");
+  }
+  if (!wallet || wallet.length !== 34 || !wallet.startsWith("T")) {
+    return alert("Invalid wallet address.");
+  }
+  if (isNaN(amt) || amt <= 0) {
+    return alert("Enter valid amount.");
+  }
+
+  const rate = pricing[type][day];
+  if (!rate) return alert("Invalid day selected.");
+  const total = amt * rate;
+
+  const saleData = {
+    saleType: type,
+    wallet,
+    amount: amt,
+    days: day,
+    trxPaid: total,
+    status: "pending",
+    createdAt: Date.now()
+  };
+
+  try {
+    await push(ref(db, "pendingSales"), saleData);
+    alert("✅ Request submitted!");
+  } catch (e) {
+    console.error("Firebase error:", e);
+    alert("❌ Failed to submit.");
+  }
+});
+
+
+
+// ⚙️ CONFIG
+const STAKE_REWARD_PERCENT = 6; // Company sets 5–8%
+const MIN_STAKE_DAYS = 30;
+
+// 📦 STAKE NOW
+document.getElementById("stakeNow").addEventListener("click", async () => {
+  const amount = parseFloat(document.getElementById("stakeAmount").value);
+  const days = parseInt(document.getElementById("stakeDays").value);
+  const wallet = window.tronWeb?.defaultAddress?.base58 || "";
+
+  if (!wallet || isNaN(amount) || amount <= 0 || isNaN(days) || days < MIN_STAKE_DAYS) {
+    return alert("⚠️ Enter valid amount and minimum 30 days");
+  }
+
+  const reward = amount + (amount * STAKE_REWARD_PERCENT / 100);
+  const createdAt = Date.now();
+  const endsAt = createdAt + days * 24 * 60 * 60 * 1000;
+
+  const stakeData = {
+    wallet,
+    amount,
+    days,
+    reward: parseFloat(reward.toFixed(2)),
+    createdAt,
+    endsAt,
+    claimed: false
+  };
+
+  try {
+    await push(ref(db, "stakes"), stakeData);
+    document.getElementById("rewardDisplay").textContent = `✅ Staked! Will get ${reward.toFixed(2)} TRX`;
+    startCountdown(endsAt);
+  } catch (e) {
+    alert("❌ Firebase error: " + e.message);
+  }
+});
+
+// 🎁 LIVE REWARD PREVIEW
+document.getElementById("stakeAmount").addEventListener("input", () => {
+  const amt = parseFloat(document.getElementById("stakeAmount").value);
+  const reward = amt + (amt * STAKE_REWARD_PERCENT / 100);
+  if (!isNaN(reward)) {
+    document.getElementById("rewardDisplay").textContent = `🎁 Estimated Reward: ${reward.toFixed(2)} TRX`;
+  } else {
+    document.getElementById("rewardDisplay").textContent = "🎁 Estimated Reward: -";
+  }
+});
+
+// ⏳ COUNTDOWN TIMER
+function startCountdown(endTime) {
+  const display = document.getElementById("stakeCountdown");
+  const claimBtn = document.getElementById("claimRewardBtn");
+
+  const interval = setInterval(() => {
+    const now = Date.now();
+    const diff = endTime - now;
+
+    if (diff <= 0) {
+      clearInterval(interval);
+      display.textContent = "✅ Staking complete!";
+      claimBtn.style.display = "block";
+    } else {
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const mins = Math.floor((diff / (1000 * 60)) % 60);
+      display.textContent = `⏳ Time left: ${days}d ${hours}h ${mins}m`;
+    }
+  }, 1000);
+}
+
+// 🎉 CLAIM REWARD (UI only – backend will handle real transfer)
+document.getElementById("claimRewardBtn").addEventListener("click", () => {
+  alert("🎉 Your reward will be distributed by backend after maturity.");
+});
+
+
+
 
 // Check Bandwidth
 document.getElementById("checkBandwidth").addEventListener("click", async () => {
@@ -244,28 +464,8 @@ async function fetchTRXPrice() {
   }
 }
 
-// Estimate Calculation
-function calculateEstimate(idAmount, idDays, ratePerUnit, estimateId) {
-  const amount = parseFloat(document.getElementById(idAmount).value) || 0;
-  const days = parseInt(document.getElementById(idDays).value) || 1;
-  const cost = (amount * days * ratePerUnit) / 1_000_000;
-  document.getElementById(estimateId).innerText = cost.toFixed(3);
-}
 
-// Estimation Events
-document.getElementById('bandwidthAmount').addEventListener('input', () =>
-  calculateEstimate('bandwidthAmount', 'bandwidthDays', 10, 'bandwidthEstimate')
-);
-document.getElementById('bandwidthDays').addEventListener('change', () =>
-  calculateEstimate('bandwidthAmount', 'bandwidthDays', 10, 'bandwidthEstimate')
-);
 
-document.getElementById('energyAmount').addEventListener('input', () =>
-  calculateEstimate('energyAmount', 'energyDays', 0.5, 'energyEstimate')
-);
-document.getElementById('energyDays').addEventListener('change', () =>
-  calculateEstimate('energyAmount', 'energyDays', 0.5, 'energyEstimate')
-);
 
 // Run on Start
 fetchTRXPrice();
@@ -278,7 +478,9 @@ setInterval(fetchTRXPrice, 1 * 60 * 1000);
 // 📶 Auto detect TronLink every 2 sec
 function detectTronLink(retry = 10) {
   if (window.tronWeb && window.tronWeb.ready) {
-    console.log("✅ TronLink Connected:", tronWeb.defaultAddress.base58);
+    tronWeb = window.tronWeb;
+    console.log("✅ TronLink detected:", tronWeb.defaultAddress.base58);
+    document.getElementById("connectWallet").innerText = "Connected: " + tronWeb.defaultAddress.base58;
   } else if (retry > 0) {
     console.log("⏳ Waiting for TronLink...");
     setTimeout(() => detectTronLink(retry - 1), 2000);
@@ -323,105 +525,6 @@ function updatePrice(type, amountInput, daysSelect, priceDisplay) {
 detectTronLink();
 
 
-// Central pricing
-const pricing = {
-  energy: {
-    1: 0.0001,3: 0.000165,5: 0.000275,10: 0.00055,15: 0.00075,30: 0.00135
-  },
-  bandwidth: { 1: 1.56 / 1000, 3: 4.095 / 1000, 5: 6.825 / 1000, 10: 13.65 / 1000, 15: 20.475 / 1000, 30: 40.95 / 1000 }
-};
-
-const platformWallet = "TMvfDAN4NNWhRCwbHZqj2LvQptHZQJE6gA";
 
 
-// Validate + Calculate total TRX
-function validateAndCalc() {
-  const type = document.getElementById("finalType").value;
-  const amt = parseFloat(document.getElementById("finalAmount").value);
-  const days = document.getElementById("finalDays").value;
-  const toAddr = document.getElementById("finalToAddress").value.trim();
-  const totalTxt = document.getElementById("finalTotal");
-  const depositBtn = document.getElementById("finalDepositBtn");
 
-  let valid = true;
-  if (!type) valid = false;
-  if (!amt || (type === "energy" && amt < 50000) || (type === "bandwidth" && amt < 1000)) valid = false;
-  if (!days) valid = false;
-  if (toAddr.length !== 34) valid = false;
-
-  if (valid) {
-    const rate = pricing[type][days];
-    const total = (amt * rate).toFixed(3);
-    totalTxt.innerText = total + " TRX";
-    depositBtn.disabled = false;
-  } else {
-    totalTxt.innerText = "-";
-    depositBtn.disabled = true;
-  }
-}
-
-// Deposit popup open
-function openDepositPopup() {
-  document.getElementById("depositPopup").classList.remove("hidden");
-}
-function closePopup() {
-  document.getElementById("depositPopup").classList.add("hidden");
-}
-
-
-// Copy wallet address
-function copyPlatformWallet() {
-  navigator.clipboard.writeText(platformWallet);
-  alert("📋 Copied platform wallet!");
-}
-
-// Confirm deposit & start 15m timer
-function confirmDeposit() {
-  const userAddr = document.getElementById("userDepositAddress").value.trim();
-  if (!userAddr || userAddr.length !== 34) return alert("❗ Enter valid deposit wallet address.");
-
-  document.getElementById("depositPopup").classList.add("hidden");
-  start15MinTimer();
-  document.getElementById("finalDepositBtn").disabled = true;
-}
-
-// 15m timer logic
-function start15MinTimer() {
-  let time = 900;
-  const timerEl = document.getElementById("finalTimer");
-
-  clearInterval(depositTimer); // clear any running timer
-  depositTimer = setInterval(() => {
-    const min = Math.floor(time / 60);
-    const sec = time % 60;
-    timerEl.innerText = `⏳ ${min}:${sec < 10 ? "0" : ""}${sec}`;
-    if (time-- <= 0) {
-      clearInterval(depositTimer);
-      timerEl.innerText = "⏰ Time expired!";
-      document.getElementById("finalDepositBtn").disabled = false;
-    }
-  }, 1000);
-}
-
-// Button click lag detection (3 sec)
-function detectLag(btnId) {
-  const btn = document.getElementById(btnId);
-  const start = Date.now();
-
-  setTimeout(() => {
-    const diff = Date.now() - start;
-    if (diff > 3000) {
-      alert("⚠️ Network or wallet slow — retry if needed.");
-    }
-  }, 3000);
-}
-
-// Attach events
-document.getElementById("finalType").addEventListener("change", validateAndCalc);
-document.getElementById("finalAmount").addEventListener("input", validateAndCalc);
-document.getElementById("finalDays").addEventListener("change", validateAndCalc);
-document.getElementById("finalToAddress").addEventListener("input", validateAndCalc);
-document.getElementById("finalDepositBtn").addEventListener("click", () => {
-  openDepositPopup();
-  detectLag("finalDepositBtn");
-});

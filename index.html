@@ -3,7 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <title>VedWeb3</title>
+  <title>VedTron Energy Rental</title>
+  <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+
+<!-- Add the Firebase products that you want to use -->
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+
+<!-- Your app's script -->
+<script src="app.js"></script>
+  <script type="module" src="app.js">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getFirestore, serverTimestamp } from "firebase/firestore";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
+      authDomain: "veddev-design.firebaseapp.com",
+      projectId: "veddev-design",
+      storageBucket: "veddev-design.appspot.com",
+      messagingSenderId: "1005840455508",
+      appId: "1:1005840455508:web:944c6890fbf82167e55ac1",
+      measurementId: "G-JVCYDNDW7L"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.db = db;
+    window.dbTimestamp = serverTimestamp;
+  </script>
+  <script defer src="app.js"></script>
   <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
   <div class="ticker-container">
@@ -13,41 +45,27 @@
   </div>
   
   <h1>🚀 Welcome to VedWeb3 Project 🚀</h1>
+  
+
 
   <div id="trxPriceCard" class="trx-card">📈 TRX Price: Loading...</div>
 
   <button id="connectWallet">Connect TronLink Wallet</button>
-  <button onclick="checkMyEnergy()">🔍 Check My Energy in Contract</button>
+  
+  <button id="connectWallet">Universal Wallet Connect</button>
+  <p id="walletStatus"></p>
+  <script src="wallet-connect.js"></script>
 
 
   
 <!-- Card -->
   <div class="card-container">
 
-    <!-- Bandwidth Card -->
-    <div class="card">
-      <h2>📶 Bandwidth Rent</h2>
-      <input id="bandwidthAmount" placeholder="Bandwidth amount (min 1000)">
-      <select id="bandwidthDays">
-        <option value="1">1 Day</option>
-        <option value="3">3 Day</option>
-        <option value="5">5 Day</option>
-        <option value="10">10 Day</option>
-        <option value="15">15 Day</option>
-        <option value="30">30 Day</option>
-      </select>
-      <p id="bandwidthPriceDisplay"></p>
-      <button id="buyBandwidth">📶Buy Bandwidth</button>
-      <button id="checkBandwidth">📶Check Bandwidth Balance</button>
-      <p id="balanceDisplay">📶Your Bandwidth Balance: 0 points</p>
-      
-
-    </div>
-
     <!-- Energy Card -->
     <div class="card">
       <h2>⚡ Energy Rent</h2>
       <input id="energyAmount" placeholder="Energy amount (min 50000)">
+      <p id="energyRateInfo"></p>
       <select id="energyDays">
         <option value="1">1 Day</option>
         <option value="3">3 Day</option>
@@ -65,51 +83,71 @@
     </div>
     <!-- Storage Card -->
     <div class="card">
-        <h2>📝 Other Wallet</h2>
-        <label>Selected:</label>
-        <select id="finalType">
-          <option value="energy">Energy Rent</option> 
-          <option value="bandwidth">Bandwidth Rent</option>
-        </select>
-      
-        <label>Amount:</label>
-        <input id="finalAmount"  placeholder="Energy or Bandwidth Amount">
-      
-        <label>Days:</label>
-        <select id="finalDays">
-            <option value="1">1 Day</option>
-            <option value="3">3 Days</option>
-            <option value="5">5 Days</option>
-            <option value="10">10 Days</option>
-            <option value="15">15 Days</option>
-            <option value="30">30 Days</option>
-        </select>
-      
-        <label>To Address:</label>
-        <input id="finalToAddress" placeholder="Recipient Address">
-      
-        <p>💰 Total TRX: <span id="finalTotal">-</span></p>
-      
-        <button id="finalDepositBtn" disabled>💸 Deposit</button>
-        <p id="finalTimer" style="color:red;font-weight:bold;"></p>
-      </div>
-      
-      <!-- Popup -->
-      <div id="depositPopup" class="popup hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center;"></div>
-        <h3>📤 Send TRX to:</h3>
-        <button onclick="closePopup()" style="background: none; border: none; color: white; font-size: 20px;">❌ </button> 
-        <p id="platformWallet">TMvfDAN4NNWhRCwbHZqj2LvQptHZQJE6gA</p>
+      <h2>🧩 Other Wallet / Staking</h2>
+  
+      <select id="typeSelect">
+        <option value="energy">⚡ Energy</option>
+        <option value="bandwidth">📶 Bandwidth</option>
+        <option value="staking">💸 Staking</option>
+      </select>
+  
+      <input type="number" id="amountInput" placeholder="Amount (e.g. 100000)">
+      <select id="daysSelect">
+        <option value="1">1 Day</option>
+        <option value="3">3 Days</option>
+        <option value="5">5 Days</option>
+        <option value="10">10 Days</option>
+        <option value="15">15 Days</option>
+        <option value="30">30 Days</option>
+      </select>
+  
+      <input type="text" id="targetWallet" placeholder="Target Wallet (T...)">
+  
+      <div id="totalTRX">TRX: -</div>
+      <button id="confirmBtn">Confirm</button>
+    </div>
 
-        <button onclick="copyPlatformWallet()">📋 Copy Address</button>
+    <!-- Bandwidth Card -->
+    <div class="card">
+      <h2>📶 Bandwidth Rent</h2>
+      <input id="bandwidthAmount" placeholder="Bandwidth amount (min 1000)">
+      <p id="bandwidthEstimate"></p>
+      <select id="bandwidthDays">
+        <option value="1">1 Day</option>
+        <option value="3">3 Day</option>
+        <option value="5">5 Day</option>
+        <option value="10">10 Day</option>
+        <option value="15">15 Day</option>
+        <option value="30">30 Day</option>
+      </select>
+      <p id="bandwidthPriceDisplay"></p>
+      <button id="buyBandwidth">📶Buy Bandwidth</button>
+      <button id="checkBandwidth">📶Check Bandwidth Balance</button>
+      <p id="balanceDisplay">📶Your Bandwidth Balance: 0 points</p>
       
-        <label>Your Deposit Address:</label>
-        <input id="userDepositAddress" placeholder="Your sending wallet">
-      
-        <button onclick="confirmDeposit()">✅ Confirm</button>
-      </div>
-      
-  </div>
+
+    </div>
+
+
+<!-- 🟩 STAKING MODULE -->
+<div class="card">
+  <h2>🚀 Stake TRX (Minimum 30 Days)</h2>
+  <input type="number" id="stakeAmount" placeholder="Enter TRX amount (min 30 TRX)" />
+  <select id="stakeDays">
+    <option value="30">30 Days</option>
+    <option value="60">60 Days</option>
+    <option value="90">90 Days</option>
+  </select>
+  <button id="stakeNow">📥 Stake Now</button><br>
+  <a href="history.html" class="btn">📜 My Stake History</a>
+ 
+  <br>
+
+  <div id="rewardDisplay">🎁 Estimated Reward: -</div>
+  <div id="stakeCountdown"></div>
+  <button id="claimRewardBtn" style="display:none;">🎉 Claim Reward</button>
+</div>
+
 
 <br>
   <div class="hero-banner">
@@ -141,6 +179,24 @@
   
 
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
-  <script src="app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
+  <script type="module">
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+    const functions = getFunctions();
+    const claimStakeReward = httpsCallable(functions, "claimStakeReward");
+  
+    document.getElementById("claimRewardBtn").addEventListener("click", async () => {
+      const stakeId = prompt("Enter stake ID to claim");
+      // or auto-fill based on user
+      try {
+        const result = await claimStakeReward({ stakeId });
+        alert("✅ " + result.data.message);
+      } catch (e) {
+        alert("❌ Error: " + e.message);
+      }
+    });
+  </script>
+ 
 </body>
 </html>
