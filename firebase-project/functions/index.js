@@ -82,3 +82,32 @@ exports.createPendingSale = functions.https.onRequest((req, res) => {
       res.status(500).send("Internal error");
     });
 });
+
+
+// 🏦 Create or Update Stake (manual POST)
+exports.createOrUpdateStake = functions.https.onRequest(async (req, res) => {
+    const data = req.body;
+    if (!data.wallet || !data.amount || !data.days) {
+      return res.status(400).json({ success: false, message: "Missing fields" });
+    }
+  
+    const stakeId = data.stakeId || push(child(ref(db), "stakes")).key;
+    const createdAt = data.createdAt || Date.now();
+    const existingSnapshot = await get(child(ref(db), `stakes/${stakeId}`));
+    const existing = existingSnapshot.exists() ? existingSnapshot.val() : {};
+  
+    const endsAt = existing.endsAt || createdAt + data.days * 24 * 60 * 60 * 1000;
+  
+    await update(ref(db, `stakes/${stakeId}`), {
+      wallet: data.wallet,
+      amount: data.amount,
+      days: data.days,
+      reward: data.reward || 0,
+      claimed: false,
+      createdAt,
+      endsAt,
+    });
+  
+    return res.json({ success: true, stakeId });
+  });
+  
