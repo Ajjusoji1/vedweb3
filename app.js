@@ -390,6 +390,32 @@ document.getElementById("claimRewardBtn").addEventListener("click", () => {
   alert("🎉 Your reward will be distributed by backend after maturity.");
 });
 
+// 🎉 CLAIM REWARD FUNCTION
+async function claimReward(stakeId) {
+  try {
+    const res = await fetch(
+      "https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stakeId })
+      }
+    );
+    const result = await res.json();
+    if (result.success) {
+      alert("✅ Reward claimed successfully!");
+    } else {
+      alert("❌ Failed: " + result.message);
+    }
+  } catch (err) {
+    alert("❌ Network error");
+  }
+}
+document.getElementById("claimRewardBtn").addEventListener("click", () => {
+  const stakeId = "PUT_FIREBASE_STAKE_ID_HERE"; // use from history or data-id
+  claimReward(stakeId);
+});
+
 
 
 
@@ -526,5 +552,173 @@ detectTronLink();
 
 
 
+//admin
+// Admin functionality 
 
+// FILTERING LOGIC
+const statusFilter = document.getElementById("filterStatus").value;
+const minAmount = parseFloat(document.getElementById("minAmount").value) || 0;
 
+const filteredStakes = stakes.filter(stake => {
+  const isCompleted = stake.endsAt && Date.now() > stake.endsAt;
+  const isActive = !isCompleted;
+  const matchStatus =
+    statusFilter === "all" ||
+    (statusFilter === "active" && isActive) ||
+    (statusFilter === "completed" && isCompleted);
+  return matchStatus && stake.amount >= minAmount;
+});
+
+for (const stake of filteredStakes) {
+  document.getElementById("applyFilters").addEventListener("click", () => {
+    if (window.tronWeb?.defaultAddress?.base58) {
+      renderStakes(window.tronWeb.defaultAddress.base58);
+    }
+  });
+}
+
+function renderStakes(walletAddress) {
+  const list = document.getElementById("stakeList");
+  list.innerHTML = "⏳ Loading...";
+  get(child(ref(db), "stakes")).then(snapshot => {
+    const allStakes = [];
+    snapshot.forEach(childSnap => {
+      const data = childSnap.val();
+      if (data.wallet === walletAddress) {
+        allStakes.push(data);
+      }
+    });
+
+    // 👇 Apply filters
+    const statusFilter = document.getElementById("filterStatus").value;
+    const minAmount = parseFloat(document.getElementById("minAmount").value) || 0;
+
+    const filteredStakes = allStakes.filter(stake => {
+      const isCompleted = stake.endsAt && Date.now() > stake.endsAt;
+      const isActive = !isCompleted;
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && isActive) ||
+        (statusFilter === "completed" && isCompleted);
+      return matchStatus && stake.amount >= minAmount;
+    });
+
+    // 👇 Render table
+    list.innerHTML = "";
+    if (filteredStakes.length === 0) {
+      list.innerHTML = "❌ No matching records found.";
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.innerHTML = `
+      <tr>
+        <th>Amount</th>
+        <th>Reward</th>
+        <th>Duration</th>
+        <th>Ends In</th>
+        <th>Status</th>
+      </tr>
+    `;
+    for (const stake of filteredStakes) {
+      const endsIn = stake.endsAt - Date.now();
+      const days = Math.max(0, Math.floor(endsIn / (1000 * 60 * 60 * 24)));
+      const status = stake.claimed
+        ? "✅ Claimed"
+        : endsIn <= 0
+        ? "🟢 Completed"
+        : "⏳ Active";
+
+      table.innerHTML += `
+        <tr>
+          <td>${stake.amount}</td>
+          <td>${stake.reward}</td>
+          <td>${stake.days}</td>
+          <td>${days} days</td>
+          <td>${status}</td>
+        </tr>
+      `;
+    }
+
+    list.appendChild(table);
+  });
+}
+document.getElementById("applyFilters").addEventListener("click", () => {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (wallet) {
+    renderStakes(wallet);
+  } else {
+    alert("Connect TronLink first.");
+  }
+});
+window.addEventListener("load", () => {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (wallet) {
+    renderStakes(wallet);
+  }
+});
+
+// ✅ Stake Reward Claim Handler (Inside history.html page)
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const tableBody = document.getElementById("stakeTableBody");
+
+  // 🧠 Load stakes
+  const snapshot = await get(child(ref(db), "stakes"));
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+    const entries = Object.entries(data);
+    entries.forEach(([id, stake]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${stake.wallet}</td>
+        <td>${stake.amount}</td>
+        <td>${stake.days}</td>
+        <td>${stake.reward}</td>
+        <td>${new Date(stake.createdAt).toLocaleDateString()}</td>
+        <td>${new Date(stake.endsAt).toLocaleDateString()}</td>
+        <td>
+            ${stake.claimed ? "✅ Claimed" : (stake.endsAt <= Date.now()
+                 ? `<button class="claimBtn" data-id="${id}">Claim</button>` : "⏳ Waiting")
+            }   
+          </td>
+
+      `;
+      tableBody.appendChild(tr);
+    });
+
+    // 🧩 Claim button logic
+    document.querySelectorAll(".claimBtn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const stakeId = btn.getAttribute("data-id");
+        btn.textContent = "⏳ Claiming...";
+        btn.disabled = true;
+
+        try {
+          const res = await fetch(
+            "https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stakeId })
+            }
+          );
+          const result = await res.json();
+          if (result.success) {
+            btn.textContent = "✅ Claimed";
+          } else {
+            btn.textContent = "❌ Failed";
+            btn.disabled = false;
+            alert("Error: " + result.message);
+          }
+        } catch (e) {
+          btn.textContent = "❌ Error";
+          btn.disabled = false;
+          alert("Network error");
+        }
+      });
+    });
+  } else {
+    tableBody.innerHTML = "<tr><td colspan='7'>No staking history</td></tr>";
+  }
+});
