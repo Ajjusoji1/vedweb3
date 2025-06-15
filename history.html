@@ -1,88 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📅My Stake History</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stake History</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0a0a0a;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #111;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 0 10px #0ff;
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    h2 {
+      color: #0ff;
+    }
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    select, input[type="number"], button {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    select, input[type="number"] {
+      background: #222;
+      color: #fff;
+      width: 180px;
+    }
+    button {
+      background: #0ff;
+      color: #000;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0cc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #333;
+      text-align: left;
+    }
+    th {
+      background: #222;
+    }
+    .no-data {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+    }
+  </style>
 </head>
 <body>
-    <h2>📜 My Staking History</h2>
-     <div id="stakeList">Loading...</div>
+  <div class="card">
+    <h2>📜 Stake History</h2>
+    <div class="filter-row">
+      <select id="filterStatus">
+        <option value="all">All Status</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+      </select>
+      <input type="number" id="minAmount" placeholder="Min Amount" />
+      <button id="applyFilters">Apply Filters</button>
+    </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-        
-        // Firebase config (same as app.js)
-        const firebaseConfig = {
-          apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
-          authDomain: "veddev-design.firebaseapp.com",
-          databaseURL: "https://veddev-design-default-rtdb.firebaseio.com/",
-          projectId: "veddev-design",
-          storageBucket: "veddev-design.appspot.com",
-          messagingSenderId: "1005840455508",
-          appId: "1:1005840455508:web:944c6890fbf82167e55ac1",
-          measurementId: "G-JVCYDNDW7L"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        
-        // Wait for TronLink wallet
-        function waitForWallet(callback) {
-          const check = () => {
-            if (window.tronWeb && window.tronWeb.defaultAddress?.base58) {
-              callback(window.tronWeb.defaultAddress.base58);
-            } else {
-              setTimeout(check, 1000);
-            }
-          };
-          check();
-        }
-        
-        // Render stake history
-        function renderStakes(wallet) {
-          const stakeRef = ref(db, "stakes");
-          const listEl = document.getElementById("stakeList");
-          listEl.innerHTML = "⏳ Loading...";
-        
-          onValue(stakeRef, (snapshot) => {
-            const data = snapshot.val();
-            listEl.innerHTML = "";
-        
-            if (!data) {
-              listEl.innerHTML = "No stake history found.";
-              return;
-            }
-        
-            const stakes = Object.values(data).filter(s => s.wallet === wallet);
-        
-            if (stakes.length === 0) {
-              listEl.innerHTML = "You have no stakes.";
-              return;
-            }
-        
-            stakes.sort((a, b) => b.createdAt - a.createdAt);
-        
-            for (const stake of stakes) {
-                const div = document.createElement("div");
-div.className = "stake-record";
-div.innerHTML = `
-  <div class="row"><span class="label">📅 Date:</span><span class="value">${new Date(stake.createdAt).toLocaleString()}</span></div>
-  <div class="row"><span class="label">💰 Amount:</span><span class="value">${stake.amount} TRX</span></div>
-  <div class="row"><span class="label">🎁 Reward:</span><span class="value">${stake.reward} TRX</span></div>
-  <div class="row"><span class="label">⏳ Days:</span><span class="value">${stake.days}</span></div>
-  <div class="row"><span class="label">✅ Claimed:</span><span class="value">${stake.claimed ? "Yes" : "No"}</span></div>
-`;
+    <table>
+      <thead>
+        <tr>
+          <th>Amount</th>
+          <th>Days</th>
+          <th>Reward</th>
+          <th>Status</th>
+          <th>Ends</th>
+        </tr>
+      </thead>
+      <tbody id="stakeList">
+        <tr><td colspan="5" class="no-data">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-              listEl.appendChild(div);
-            }
-          });
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
+      authDomain: "veddev-design.firebaseapp.com",
+      databaseURL: "https://veddev-design-default-rtdb.firebaseio.com/",
+      projectId: "veddev-design",
+      storageBucket: "veddev-design.appspot.com",
+      messagingSenderId: "1005840455508",
+      appId: "1:1005840455508:web:944c6890fbf82167e55ac1",
+      measurementId: "G-JVCYDNDW7L"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const stakeList = document.getElementById("stakeList");
+    const filterStatus = document.getElementById("filterStatus");
+    const minAmount = document.getElementById("minAmount");
+    const applyBtn = document.getElementById("applyFilters");
+
+    function renderStakes(allStakes) {
+      stakeList.innerHTML = "";
+
+      if (allStakes.length === 0) {
+        stakeList.innerHTML = `<tr><td colspan="5" class="no-data">No stakes found</td></tr>`;
+        return;
+      }
+
+      allStakes.forEach(stake => {
+        const status = stake.claimed ? "completed" : "active";
+        const endDate = new Date(stake.endsAt).toLocaleDateString();
+
+        stakeList.innerHTML += `
+          <tr>
+            <td>${stake.amount}</td>
+            <td>${stake.days}</td>
+            <td>${stake.reward}</td>
+            <td>${status}</td>
+            <td>${endDate}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function loadStakeData() {
+      if (!window.tronWeb?.defaultAddress?.base58) {
+        return alert("🔌 Connect TronLink wallet first!");
+      }
+
+      const userWallet = window.tronWeb.defaultAddress.base58;
+      const userRef = ref(db, "stakes");
+
+      onValue(userRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return renderStakes([]);
+
+        let allStakes = Object.values(data).filter(s => s.wallet === userWallet);
+
+        // Filters
+        const min = parseFloat(minAmount.value);
+        const status = filterStatus.value;
+
+        if (!isNaN(min)) {
+          allStakes = allStakes.filter(s => s.amount >= min);
         }
-        
-        waitForWallet(renderStakes);
-        </script>
-        
+        if (status !== "all") {
+          allStakes = allStakes.filter(s => (status === "completed" ? s.claimed : !s.claimed));
+        }
+
+        renderStakes(allStakes);
+      });
+    }
+
+    applyBtn.addEventListener("click", loadStakeData);
+
+    setTimeout(() => {
+      if (window.tronWeb?.defaultAddress?.base58) {
+        loadStakeData();
+      }
+    }, 1000);
+  </script>
 </body>
 </html>
