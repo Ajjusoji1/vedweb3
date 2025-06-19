@@ -1,6 +1,12 @@
+// ✅ FINAL app.js CODE
+// ✅ Firebase imports (module based)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import {
+  getDatabase, ref, child, get
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 
-
+// ✅ Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAvyCHq4NDM4zh2IFhm-NczTNy_WJNxv7w",
   authDomain: "veddev-design.firebaseapp.com",
@@ -13,13 +19,14 @@ const firebaseConfig = {
 };
 
 
-
+// ✅ Initialize
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 // Initialize TronLink
 
 let tronWeb;
 let trxPrice = 0;
-let depositTimer;
 let selectedWallet = ""; // wallet used in transaction
 
 const ownerAddress = 'TMvfDAN4NNWhRCwbHZqj2LvQptHZQJE6gA'; // Replace with your address
@@ -44,6 +51,559 @@ priceData.forEach(item => {
   span.innerText = `${item.icon} ${item.text}`;
   ticker.appendChild(span);
 });
+
+// menu toggle
+document.addEventListener("click", function (event) {
+  const sidebar = document.getElementById("sidebarMenu");
+  const button = document.querySelector(".menu-toggle");
+  if (!sidebar.contains(event.target) && !button.contains(event.target)) {
+    sidebar.classList.remove("show");
+  }
+});
+
+// referral link generation
+
+
+function generateReferralLink() {
+  const baseUrl = "https://vedweb3.com/referral?ref=";
+  const walletAddress = window.tronWeb?.defaultAddress?.base58 || "unknown";
+  return baseUrl + walletAddress;
+}
+// Display referral link
+document.getElementById("referralLink").innerText = generateReferralLink();
+// Copy referral link to clipboard
+document.getElementById("copyReferral").addEventListener("click", () => {
+  const link = generateReferralLink();
+  navigator.clipboard.writeText(link).then(() => {
+    alert("✅ Referral link copied to clipboard!");
+  }).catch(err => {
+    console.error("❌ Failed to copy referral link:", err);
+  });
+});
+// Initialize TronLink if available
+if (window.tronWeb && window.tronWeb.ready) {
+  tronWeb = window.tronWeb;
+  console.log("✅ TronLink detected:", tronWeb.defaultAddress.base58);
+}
+// If TronLink is not available, wait for it to load
+if (!tronWeb) {
+  console.warn("⏳ Waiting for TronLink...");
+  const checkTronLink = setInterval(() => {
+    if (window.tronWeb && window.tronWeb.ready) {
+      tronWeb = window.tronWeb;
+      clearInterval(checkTronLink);
+      console.log("✅ TronLink connected:", tronWeb.defaultAddress.base58);
+    }
+  }, 2000);
+}
+
+async function loadReferralRewards(wallet) {
+  const snapshot = await get(child(ref(db), "referrals/" + wallet));
+  if (!snapshot.exists()) return;
+  
+  const data = snapshot.val();
+  const total = data.total || 0;
+  const claimed = data.claimed || 0;
+  const pending = data.pending || 0;
+  
+  document.getElementById("totalReferral").textContent = total.toFixed(2);
+  document.getElementById("claimedReferral").textContent = claimed.toFixed(2);
+  document.getElementById("pendingReferral").textContent = pending.toFixed(2);
+  
+  const btn = document.getElementById("claimReferralBtn");
+  btn.disabled = pending <= 0;
+  
+  btn.onclick = async () => {
+  btn.textContent = "⏳ Claiming...";
+  btn.disabled = true;
+  try {
+  const res = await fetch("https://us-central1-veddev-design.cloudfunctions.net/claimReferralReward", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ wallet })
+  });
+  const result = await res.json();
+  if (result.success) {
+  btn.textContent = "✅ Claimed";
+  loadReferralRewards(wallet); // Reload updated values
+  } else {
+  btn.textContent = "❌ Failed";
+  alert("Error: " + result.message);
+  btn.disabled = false;
+  }
+  } catch (err) {
+  console.error(err);
+  btn.textContent = "❌ Error";
+  btn.disabled = false;
+  }
+  };
+  }
+  
+  window.addEventListener("load", async () => {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (wallet) {
+  loadReferralRewards(wallet);
+  }
+  });
+
+// 🔍 Referral detection from URL
+function getReferrerFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const ref = params.get("ref");
+  if (ref && ref.startsWith("T")) {
+    return ref;
+  }
+  return null;
+}
+
+// 📨 Stake submission handler
+async function submitStake() {
+  const amount = parseFloat(document.getElementById("stakeAmount").value);
+  const days = parseInt(document.getElementById("stakeDays").value);
+  const wallet = window.tronWeb.defaultAddress.base58;
+
+  if (!wallet || !amount || !days) {
+    alert("All fields required.");
+    return;
+  }
+
+  const reward = amount * days * 0.001; // Change your reward logic as needed
+  const createdAt = Date.now();
+  const endsAt = createdAt + days * 24 * 60 * 60 * 1000;
+
+  const stakeData = {
+    wallet,
+    amount,
+    days,
+    reward,
+    createdAt,
+    endsAt,
+    claimed: false
+  };
+
+  // ✅ If referrer exists in URL, attach to stake
+  const referrer = getReferrerFromURL();
+  if (referrer && referrer !== wallet) {
+    stakeData.referrer = referrer;
+  }
+
+  // Push to Firebase
+  const stakeRef = push(ref(db, "stakes"));
+  await set(stakeRef, stakeData);
+
+  alert("✅ Stake submitted!");
+}
+// claim reward button
+document.getElementById("claimRewardBtn").addEventListener("click", async () => {
+
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (!wallet) {
+    alert("Please connect your wallet first.");
+    return;
+  }
+  const stakeId = document.getElementById("stakeIdInput").value;
+  if (!stakeId) {
+    alert("Please enter a valid stake ID.");
+    return;
+  }
+  const claimBtn = document.getElementById("claimRewardBtn");
+  claimBtn.textContent = "⏳ Claiming...";
+  claimBtn.disabled = true;
+  try {
+    const res = await fetch("https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stakeId, wallet })
+    });
+    const result = await res.json();
+    if (result.success) {
+      claimBtn.textContent = "✅ Claimed";
+      claimBtn.disabled = true;
+      alert("🎉 Your reward has been claimed successfully!")
+      } else {
+                claimBtn.textContent = "❌ Failed";
+                alert("Error: " + result.message);
+                claimBtn.disabled = false;
+      }
+  } catch (err) {
+    console.error("Claim error:", err);
+    claimBtn.textContent = "❌ Error";
+    claimBtn.disabled = false;
+    alert("❌ Failed to claim reward. Please try again later.");
+  }
+});
+
+// claim reward function
+async function claimReward(stakeId) {
+  if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+    alert("Please connect your TronLink wallet first.");
+    return;
+  }
+  const wallet = window.tronWeb.defaultAddress.base58;
+  const claimBtn = document.getElementById("claimRewardBtn");
+  claimBtn.textContent = "⏳ Claiming...";
+  claimBtn.disabled = true;
+  try {
+    const res = await fetch("https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stakeId, wallet })
+    });
+    const result = await res.json();
+    if (result.success) {
+      claimBtn.textContent = "✅ Claimed";
+      claimBtn.disabled = true;
+      alert("🎉 Your reward has been claimed successfully!")
+        } else {          
+              claimBtn.textContent = "❌ Failed";
+              alert("Error: " + result.message);
+              claimBtn.disabled = false;
+        }
+  } catch (err) {
+    console.error("Claim error:", err);
+    claimBtn.textContent = "❌ Error";
+    claimBtn.disabled = false;
+    alert("❌ Failed to claim reward. Please try again later.");
+  }
+}
+
+// referral rewards on page load
+async function loadReferralAnalytics() {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (!wallet) return;
+
+  const snapshot = await firebase.database().ref("referralRewards").orderByChild("to").equalTo(wallet).once("value");
+  const data = snapshot.val() || {};
+
+  let total = 0;
+  let claimed = 0;
+  let count = 0;
+
+  Object.values(data).forEach(entry => {
+    total += parseFloat(entry.reward || 0);
+    if (entry.status === "claimed") claimed += parseFloat(entry.reward || 0);
+    count++;
+  });
+
+  const pending = total - claimed;
+
+  document.getElementById("referralTotal").innerText = `${total.toFixed(2)} TRX`;
+  document.getElementById("referralClaimed").innerText = `${claimed.toFixed(2)} TRX`;
+  document.getElementById("referralPending").innerText = `${pending.toFixed(2)} TRX`;
+  document.getElementById("referralCount").innerText = count;
+}
+
+// TronLink connected પછી call કરો
+window.addEventListener("load", () => {
+  setTimeout(loadReferralAnalytics, 2000);
+});
+
+// Add Chart Loading Logic
+async function loadReferralChart() {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (!wallet) return;
+
+  const snapshot = await firebase.database().ref("referralRewards").orderByChild("to").equalTo(wallet).once("value");
+  const data = snapshot.val() || {};
+
+  const rewardByWallet = {};
+
+  Object.values(data).forEach(entry => {
+    const from = entry.from || "Unknown";
+    const reward = parseFloat(entry.reward || 0);
+    if (!rewardByWallet[from]) rewardByWallet[from] = 0;
+    rewardByWallet[from] += reward;
+  });
+
+  const labels = Object.keys(rewardByWallet);
+  const values = Object.values(rewardByWallet);
+
+  const ctx = document.getElementById("referralChart").getContext("2d");
+  new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: [
+          "#00ffff", "#00ffaa", "#00aaff", "#ffaa00", "#ff44cc", "#ff9999", "#88ff99", "#ffaaee"
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: "#fff" }
+        }
+      }
+    }
+  });
+}
+// Call chart loading after referral analytics
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    loadReferralAnalytics();
+    loadReferralChart();
+  }, 2000);
+});
+
+
+
+
+
+
+
+
+
+// approveWithdraw function
+async function approveWithdraw(withdrawId) {
+  const withdrawRef = ref(db, "withdraws/" + withdrawId);
+update(withdrawRef, { status: "approved" })
+.then(() => {
+alert("✅ Withdraw approved");
+})
+.catch((err) => {
+console.error("❌ Approval failed", err);
+alert("❌ Approval failed");
+});
+}
+
+// ✅ Withdraw Summary Loader for Admin Panel
+async function loadWithdrawSummary() {
+  const tableBody = document.querySelector("#withdrawTable tbody");
+if (!tableBody) return;
+
+const withdrawsRef = ref(db, "withdraws");
+onValue(withdrawsRef, (snapshot) => {
+tableBody.innerHTML = "";
+snapshot.forEach((childSnapshot) => {
+  const data = childSnapshot.val();
+  const withdrawId = childSnapshot.key;
+
+  const formattedDate = data.date
+    ? new Date(data.date).toLocaleDateString()
+    : "N/A";
+
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${data.wallet || "—"}</td>
+    <td>${data.amount || 0} TRX</td>
+    <td>${formattedDate}</td>
+    <td>${data.status || "pending"}</td>
+    <td>
+      ${
+        data.status === "pending"
+          ? `<button onclick="approveWithdraw('${withdrawId}')">Approve</button>`
+          : "✅"
+      }
+    </td>
+  `;
+  tableBody.appendChild(row);
+});
+
+}, { onlyOnce: true });
+}
+
+// Call function on page load
+window.addEventListener("load", () => {
+  loadWithdrawSummary();
+  });
+
+
+  // 🧠 Load pending referral rewards
+async function loadPendingReferralRewards() {
+  const table = document.getElementById("pendingReferralBody");
+  table.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
+  const snapshot = await get(ref(db, "referralRewards"));
+  const rewards = snapshot.exists() ? snapshot.val() : {};
+  const rows = Object.entries(rewards)
+    .filter(([id, data]) => data.status === "pending")
+    .map(([id, data]) => {
+      return `
+        <tr>
+          <td>${data.from}</td>
+          <td>${data.to}</td>
+          <td>${data.stakeAmount}</td>
+          <td>${data.rewardAmount}</td>
+          <td>
+            <button onclick="approveReferralReward('${id}')">✅ Approve</button>
+          </td>
+        </tr>
+      `;
+    });
+  table.innerHTML = rows.length ? rows.join("") : `<tr><td colspan="5">No pending rewards</td></tr>`;
+}
+
+// ✅ Approve referral reward
+async function approveReferralReward(rewardId) {
+  const rewardRef = ref(db, `referralRewards/${rewardId}`);
+  await update(rewardRef, { status: "approved" });
+  alert("✅ Reward Approved!");
+  loadPendingReferralRewards();
+}
+
+// 🔃 Load on page load
+window.addEventListener("DOMContentLoaded", () => {
+  loadPendingReferralRewards();
+});
+
+
+
+
+
+
+
+
+
+// Add Stake Growth Chart Loading Logic
+async function loadStakeGrowthChart() {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (!wallet) return;
+
+  const snapshot = await firebase.database().ref("stakes").orderByChild("wallet").equalTo(wallet).once("value");
+  const data = snapshot.val() || {};
+
+  const stakeDates = [];
+  const stakeAmounts = [];
+
+  Object.values(data).forEach(entry => {
+    const date = entry.createdAt || "Unknown";
+    const amount = parseFloat(entry.amount || 0);
+
+    const formattedDate = new Date(date).toLocaleDateString("en-GB"); // dd/mm/yyyy
+    stakeDates.push(formattedDate);
+    stakeAmounts.push(amount);
+  });
+
+  const ctx = document.getElementById("stakeGrowthChart").getContext("2d");
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: stakeDates,
+      datasets: [{
+        label: "Staked TRX",
+        data: stakeAmounts,
+        borderColor: "#00ffff",
+        backgroundColor: "rgba(0,255,255,0.2)",
+        tension: 0.3,
+        pointBackgroundColor: "#fff",
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: "#fff" }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#fff" }
+        },
+        y: {
+          ticks: { color: "#fff" }
+        }
+      }
+    }
+  });
+}
+// Call stake growth chart loading after referral analytics
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    loadUserSummary();  // already exists
+    loadStakeGrowthChart(); // 🔥 new
+  }, 2000);
+});
+
+function filterReferralRewards() {
+  const selected = document.getElementById("referralStatusFilter").value;
+  loadReferralRewardHistory(selected); // filter value pass કરો
+}
+
+// Add event listener to filter dropdown
+async function loadReferralRewardHistory(statusFilter = "all") {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (!wallet) return;
+
+  const snapshot = await firebase.database().ref("referralRewards").orderByChild("to").equalTo(wallet).once("value");
+  const referrals = snapshot.val() || {};
+
+  const table = document.getElementById("referralRewardsTable");
+  table.innerHTML = ""; // જૂના rows clear
+
+  Object.values(referrals).forEach(entry => {
+    const status = entry.claimed ? "claimed" : "pending";
+
+    if (statusFilter !== "all" && statusFilter !== status) return;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${entry.from}</td>
+      <td>${entry.amount}</td>
+      <td>${entry.reward}</td>
+      <td>${entry.date || "-"}</td>
+      <td>${entry.claimed ? "✅ Claimed" : "⏳ Pending"}</td>
+    `;
+    table.appendChild(row);
+  });
+}
+
+// load leader board 
+function loadLeaderboard() {
+  const leaderboardTable = document.getElementById("leaderboardTable").querySelector("tbody");
+  leaderboardTable.innerHTML = "<tr><td colspan='4'>⏳ Loading...</td></tr>";
+  
+  firebase.database().ref("stakes").once("value").then(snapshot => {
+  const stakeMap = {};
+    snapshot.forEach(childSnapshot => {
+      const stake = childSnapshot.val();
+      if (!stake || !stake.wallet) return;
+      if (!stakeMap[stake.wallet]) {
+        stakeMap[stake.wallet] = { totalStaked: 0, count: 0 };
+      }
+      stakeMap[stake.wallet].totalStaked += parseFloat(stake.amount || 0);
+      stakeMap[stake.wallet].count++;
+    });
+  const leaderboardData = Object.entries(stakeMap).map(([wallet, data]) => ({
+
+    wallet,
+      totalStaked: data.totalStaked,
+      count: data.count
+    })).sort((a, b) => b.totalStaked - a.totalStaked).slice(0, 10);
+    leaderboardTable.innerHTML = ""; // Clear previous data
+    leaderboardData.forEach((entry, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${entry.wallet}</td>
+        <td>${entry.totalStaked.toFixed(2)} TRX</td>
+        <td>${entry.count} Stakes</td>
+      `;
+      leaderboardTable.appendChild(row);
+    });
+  }).catch(error => {
+    console.error("❌ Error loading leaderboard:", error);
+    leaderboardTable.innerHTML = "<tr><td colspan='4'>❌ Error loading data</td></tr>";
+  });
+}
+// Call leaderboard loading on page load
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    loadLeaderboard(); // 🔥 new
+    if (window.tronWeb && window.tronWeb.ready) {
+      const wallet = window.tronWeb.defaultAddress.base58;
+      loadUserSummary(wallet); // 🔥 new
+      loadReferralRewards(wallet); // 🔥 new
+    }
+  }, 2000);
+});
+
+
+
+
+
 
 // Wait for TronLink to be ready
 window.addEventListener("load", async () => {
@@ -123,12 +683,12 @@ const bandwidthPrices = {
 };
 
 const energyPrices = {
-  1: 0.0001,
-  3: 0.000165,
-  5: 0.000275,
-  10: 0.00055,
-  15: 0.00075,
-  30: 0.00135
+  1: 0.00010,
+  3: 0.000225,
+  5: 0.000405,
+  10: 0.00075,
+  15: 0.00140,
+  30: 0.00225
 }
 
 async function checkMyEnergy() {
@@ -237,12 +797,7 @@ document.getElementById("buyBandwidth").addEventListener("click", async () => {
  
 // other wallet section
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 const pricing = {
   energy: { 1: 0.0001, 3: 0.000165, 5: 0.000275, 10: 0.00055, 15: 0.00075, 30: 0.00135 },
@@ -343,8 +898,20 @@ document.getElementById("stakeNow").addEventListener("click", async () => {
     claimed: false
   };
 
-  try {
-    await push(ref(db, "stakes"), stakeData);
+   try {
+    if (existingKey) {
+      // ✅ Already exists — override only if not manually modified
+      const existing = stakes[existingKey];
+      if (!existing.endsAt || existing.endsAt === existing.createdAt + existing.days * 24 * 60 * 60 * 1000) {
+        await set(ref(db, `stakes/${existingKey}`), stakeData);
+      } else {
+        alert("⚠️ Existing stake found. Manual modification detected. Skipping override.");
+        return;
+      }
+    } else {
+      await push(stakeRef, stakeData);
+    }
+
     document.getElementById("rewardDisplay").textContent = `✅ Staked! Will get ${reward.toFixed(2)} TRX`;
     startCountdown(endsAt);
   } catch (e) {
@@ -393,7 +960,144 @@ document.getElementById("claimRewardBtn").addEventListener("click", () => {
 
 
 
+
+
+// 🚀 Load Stakes and Render Table (used in history.html)
+window.loadStakeTable = async function () {
+  const tableBody = document.getElementById("stakeTableBody");
+  tableBody.innerHTML = "<tr><td colspan='7'>Loading...</td></tr>";
+
+  const snapshot = await get(child(ref(db), "stakes"));
+  tableBody.innerHTML = "";
+  if (!snapshot.exists()) {
+    tableBody.innerHTML = "<tr><td colspan='7'>No data</td></tr>";
+    return;
+  }
+
+  const data = snapshot.val();
+  const allStakes = Object.entries(data).map(([id, stake]) => ({ ...stake, id }));
+
+  for (const stake of allStakes) {
+    const isClaimable = !stake.claimed && Date.now() >= stake.endsAt;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${stake.wallet}</td>
+      <td>${stake.amount}</td>
+      <td>${stake.days}</td>
+      <td>${stake.reward}</td>
+      <td>${new Date(stake.createdAt).toLocaleDateString()}</td>
+      <td>${new Date(stake.endsAt).toLocaleDateString()}</td>
+      <td>
+        ${stake.claimed
+          ? "✅ Claimed"
+          : isClaimable
+          ? `<button class="claimBtn" data-id="${stake.id}">Claim</button>`
+          : "⏳ Not Ready"}
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  }
+
+  document.querySelectorAll(".claimBtn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const stakeId = btn.dataset.id;
+      btn.textContent = "⏳ Claiming...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stakeId })
+        });
+        const result = await res.json();
+        if (result.success) {
+          btn.textContent = "✅ Claimed";
+          loadStakeTable();
+        } else {
+          btn.textContent = "❌ Error";
+          alert(result.message);
+        }
+      } catch (e) {
+        btn.textContent = "❌ Error";
+        alert("Network error");
+      }
+    });
+  });
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.getElementById("stakeTableBody")) {
+    loadStakeTable();
+  }
+});
+
+
+// 🔄 Load Summary Stats
+async function loadUserSummary(wallet) {
+  const db = getDatabase();
+  const snapshot = await get(child(ref(db), "stakes"));
+
+  if (!snapshot.exists()) return;
+
+  let totalStaked = 0;
+  let totalRewards = 0;
+  let count = 0;
+  let claimed = 0;
+  let active = 0;
+
+  snapshot.forEach(childSnap => {
+    const stake = childSnap.val();
+    if (stake.wallet === wallet) {
+      count++;
+      totalStaked += parseFloat(stake.amount);
+      totalRewards += parseFloat(stake.reward);
+      if (stake.claimed) claimed++;
+      if (!stake.claimed && stake.endsAt > Date.now()) active++;
+    }
+  });
+
+  document.getElementById("summaryWallet").textContent = wallet;
+  document.getElementById("summaryTotalStaked").textContent = totalStaked.toFixed(2);
+  document.getElementById("summaryTotalRewards").textContent = totalRewards.toFixed(2);
+  document.getElementById("summaryCount").textContent = count;
+  document.getElementById("summaryClaimed").textContent = claimed;
+  document.getElementById("summaryActive").textContent = active;
+}
+
+// TronLink Wallet Loaded પછી Call કરો
+window.addEventListener("load", async () => {
+  if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+    const wallet = window.tronWeb.defaultAddress.base58;
+    await loadUserSummary(wallet);
+  } else {
+    const checkWallet = setInterval(() => {
+      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        clearInterval(checkWallet);
+        const wallet = window.tronWeb.defaultAddress.base58;
+        loadUserSummary(wallet);
+      }
+    }, 500);
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Check Bandwidth
+
+
 document.getElementById("checkBandwidth").addEventListener("click", async () => {
   if (!window.tronWeb || !window.tronWeb.ready) {
     alert("Please connect TronLink first.");
@@ -410,6 +1114,8 @@ document.getElementById("checkBandwidth").addEventListener("click", async () => 
 });
 
 // Energy Balance Check
+
+
 document.getElementById("checkEnergy").addEventListener("click", async () => {
     if (!window.tronWeb || !window.tronWeb.ready) {
         alert("Please connect TronLink first.");
@@ -526,5 +1232,180 @@ detectTronLink();
 
 
 
+//admin
+// Admin functionality 
+
+// FILTERING LOGIC
+const statusFilter = document.getElementById("filterStatus").value;
+const minAmount = parseFloat(document.getElementById("minAmount").value) || 0;
+
+const filteredStakes = stakes.filter(stake => {
+  const isCompleted = stake.endsAt && Date.now() > stake.endsAt;
+  const isActive = !isCompleted;
+  const matchStatus =
+    statusFilter === "all" ||
+    (statusFilter === "active" && isActive) ||
+    (statusFilter === "completed" && isCompleted);
+  return matchStatus && stake.amount >= minAmount;
+});
+
+for (const stake of filteredStakes) {
+  document.getElementById("applyFilters").addEventListener("click", () => {
+    if (window.tronWeb?.defaultAddress?.base58) {
+      renderStakes(window.tronWeb.defaultAddress.base58);
+    }
+  });
+}
+
+function renderStakes(walletAddress) {
+  const list = document.getElementById("stakeList");
+  list.innerHTML = "⏳ Loading...";
+  get(child(ref(db), "stakes")).then(snapshot => {
+    const allStakes = [];
+    snapshot.forEach(childSnap => {
+      const data = childSnap.val();
+      if (data.wallet === walletAddress) {
+        allStakes.push(data);
+      }
+    });
+
+    // 👇 Apply filters
+    const statusFilter = document.getElementById("filterStatus").value;
+    const minAmount = parseFloat(document.getElementById("minAmount").value) || 0;
+
+    const filteredStakes = allStakes.filter(stake => {
+      const isCompleted = stake.endsAt && Date.now() > stake.endsAt;
+      const isActive = !isCompleted;
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && isActive) ||
+        (statusFilter === "completed" && isCompleted);
+      return matchStatus && stake.amount >= minAmount;
+    });
+
+    // 👇 Render table
+    list.innerHTML = "";
+    if (filteredStakes.length === 0) {
+      list.innerHTML = "❌ No matching records found.";
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.innerHTML = `
+      <tr>
+        <th>Amount</th>
+        <th>Reward</th>
+        <th>Duration</th>
+        <th>Ends In</th>
+        <th>Status</th>
+      </tr>
+    `;
+    for (const stake of filteredStakes) {
+      const endsIn = stake.endsAt - Date.now();
+      const days = Math.max(0, Math.floor(endsIn / (1000 * 60 * 60 * 24)));
+      const status = stake.claimed
+        ? "✅ Claimed"
+        : endsIn <= 0
+        ? "🟢 Completed"
+        : "⏳ Active";
+
+      table.innerHTML += `
+        <tr>
+          <td>${stake.amount}</td>
+          <td>${stake.reward}</td>
+          <td>${stake.days}</td>
+          <td>${days} days</td>
+          <td>${status}</td>
+        </tr>
+      `;
+    }
+
+    list.appendChild(table);
+  });
+}
+document.getElementById("applyFilters").addEventListener("click", () => {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (wallet) {
+    renderStakes(wallet);
+  } else {
+    alert("Connect TronLink first.");
+  }
+});
+window.addEventListener("load", () => {
+  const wallet = window.tronWeb?.defaultAddress?.base58;
+  if (wallet) {
+    renderStakes(wallet);
+  }
+});
+
+// ✅ Stake Reward Claim Handler (Inside history.html page)
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const tableBody = document.getElementById("stakeTableBody");
+
+  // 🧠 Load stakes
+  const snapshot = await get(child(ref(db), "stakes"));
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+    const entries = Object.entries(data);
+    entries.forEach(([id, stake]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${stake.wallet}</td>
+        <td>${stake.amount}</td>
+        <td>${stake.days}</td>
+        <td>${stake.reward}</td>
+        <td>${new Date(stake.createdAt).toLocaleDateString()}</td>
+        <td>${new Date(stake.endsAt).toLocaleDateString()}</td>
+       <td>
+  ${
+    stake.claimed
+      ? "✅ Claimed"
+      : Date.now() > stake.endsAt
+        ? `<button class="claimBtn" data-id="${id}">Claim</button>`
+        : "⏳ Not Ready"
+  }
+</td>
 
 
+      `;
+      tableBody.appendChild(tr);
+    });
+
+    // 🧩 Claim button logic
+    document.querySelectorAll(".claimBtn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const stakeId = btn.getAttribute("data-id");
+        btn.textContent = "⏳ Claiming...";
+        btn.disabled = true;
+
+        try {
+          const res = await fetch(
+            "https://us-central1-veddev-design.cloudfunctions.net/claimStakeReward",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stakeId }) // make sure stakeId is sent!
+            }
+          );
+          const result = await res.json();
+        
+          if (result.success) {
+            btn.textContent = "✅ Claimed";
+          } else {
+            btn.textContent = "❌ Failed";
+            btn.disabled = false;
+            alert("Error: " + result.message);
+          }
+        } catch (e) {
+          btn.textContent = "❌ Error";
+          btn.disabled = false;
+          alert("Error: " + e.message);
+        }
+        
+      });
+    });
+  } else {
+    tableBody.innerHTML = "<tr><td colspan='7'>No staking history</td></tr>";
+  }
+});

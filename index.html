@@ -11,7 +11,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
 
 <!-- Your app's script -->
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
+
+
   <script type="module" src="app.js">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -38,15 +40,58 @@
 
 </head>
 <body>
+  
+
   <div class="ticker-container">
     <div class="ticker" id="newsTicker">
       <!-- Auto-filled by JS -->
     </div>
   </div>
   
-  <h1>🚀 Welcome to VedWeb3 Project 🚀</h1>
-  
+    
+   
+    <div id="nav-buttons" style="text-align: center; margin-top: 10px;">
+      <a href="index.html" class="nav-btn">🏠 Home</a>
+      <a href="stake.html" class="nav-btn">📥 Stake</a>
+      <a href="history.html" class="nav-btn">📜 History</a>
+      <a href="stake-analytics.html" class="nav-btn">📊 Analytics</a>
+    </div>
+    
+  <!-- Referral Button -->
+  <div class="referral-container">
+    <button id="referralBtn" class="referral-btn">🔗 Referral Program</button>
+    <div id="referralModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Referral Program</h2>
+        <p>Share your referral link to earn rewards!</p>
+        <input type="text" id="referralLink" readonly value="https://vedweb3.com/referral?ref=YOUR_REFERRAL_CODE" />
+        <p>Share this link with your friends to earn rewards when they sign up!</p>
+        
+        <button id="copyReferral">Copy Link</button>
+      </div>
+    </div>
+    <script>
+      document.getElementById("referralBtn").addEventListener("click", function() {
+        document.getElementById("referralModal").style.display = "block";
+      });
+      document.querySelector(".close").addEventListener("click", function() {
+        document.getElementById("referralModal").style.display = "none";
+      });
+      document.getElementById("copyReferral").addEventListener("click", function() {
+        const referralLink = document.getElementById("referralLink");
+        referralLink.select();
+        document.execCommand("copy");
+        alert("Referral link copied to clipboard!");
+      });
+      window.addEventListener("click", function(event) {
+        if (event.target == document.getElementById("referralModal")) {
+          document.getElementById("referralModal").style.display = "none";
+        }
+      });
+    </script>
 
+    
 
   <div id="trxPriceCard" class="trx-card">📈 TRX Price: Loading...</div>
 
@@ -83,12 +128,12 @@
     </div>
     <!-- Storage Card -->
     <div class="card">
-      <h2>🧩 Other Wallet / Staking</h2>
+      <h2>🧩 Other Wallet Buy</h2>
   
       <select id="typeSelect">
         <option value="energy">⚡ Energy</option>
         <option value="bandwidth">📶 Bandwidth</option>
-        <option value="staking">💸 Staking</option>
+        
       </select>
   
       <input type="number" id="amountInput" placeholder="Amount (e.g. 100000)">
@@ -148,6 +193,25 @@
   <button id="claimRewardBtn" style="display:none;">🎉 Claim Reward</button>
 </div>
 
+<!-- Top 10 Stake Users Leaderboard -->
+  <div class="card" style="margin-top: 20px;">
+     <h2>🏆 Top 10 Stake Users</h2>
+      <table id="leaderboardTable" class="table"> 
+       <thead>
+          <tr>
+            <th>Rank</th> 
+            <th>Wallet</th> 
+            <th>Total Staked</th>
+            <th>Total Rewards</th> 
+          </tr> 
+        </thead>
+          <tbody>
+            <tr>
+            <td colspan="4">⏳ Loading...</td>
+          </tr>
+          </tbody> 
+        </table>
+    </div>
 
 <br>
   <div class="hero-banner">
@@ -163,19 +227,20 @@
 
 
   
-  <footer class="footer">
+  <div class="card" style="margin-top: 20px;">
+    <h3>🛠️ VedWeb3 - Tron Energy Rental</h3>
     <h3>🔗 Quick Links</h3>
-    <ul>
-      <li><a href="/faq.html">FAQ</a></li>
-      <li><a href="mailto:support@vedweb3.com">Email Support</a></li>
-      <li><a href="https://t.me/yourTelegramSupport" target="_blank">Telegram Support</a></li>
-      <li><a href="https://t.me/yourChannel" target="_blank">Telegram Channel</a></li>
-      <li><a href="https://twitter.com/yourTwitter" target="_blank">Twitter</a></li>
-      <li><a href="https://medium.com/@yourMedium" target="_blank">Medium</a></li>
-      <li><a href="/blog.html">Blog</a></li>
-      <li><a href="Terms & conditions.html">Terms & Conditions</a></li>
-    </ul>
-  </footer>
+    
+      <a href="/faq.html"> FAQ </a>
+      <a href="mailto:support@vedweb3.com"> Email Support </a>
+      <a href="https://t.me/yourTelegramSupport" target="_blank"> Telegram Support </a>
+      <a href="https://t.me/yourChannel" target="_blank"> Telegram Channel </a>
+      <a href="https://twitter.com/yourTwitter" target="_blank"> Twitter </a>
+      <a href="https://medium.com/@yourMedium" target="_blank"> Medium </a>
+      <a href="/blog.html"> Blog </a>
+      <a href="Terms & conditions.html"> Terms & Conditions </a>
+    
+  </div>
   
 
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.min.js"></script>
@@ -183,7 +248,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
   <script type="module">
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
-    const functions = getFunctions();
+    const functions = getFunctions(app);
     const claimStakeReward = httpsCallable(functions, "claimStakeReward");
   
     document.getElementById("claimRewardBtn").addEventListener("click", async () => {

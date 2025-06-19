@@ -1,0 +1,27 @@
+<!DOCTYPE html> 
+<html lang="en">
+
+     <head> <meta charset="UTF-8" />
+
+         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+          <title>Stake TRX</title> <link rel="stylesheet" href="style.css" />
+     </head> 
+         <body> 
+            <div class="container">
+             <h1>📥 Stake TRX</h1> 
+    <div class="card"> 
+        <input type="number" id="stakeAmount" placeholder="Enter TRX amount" /> <select id="stakeDays"> 
+            <option value="15">15 Days</option>
+             <option value="30">30 Days</option>
+              <option value="60">60 Days</option> 
+            </select> 
+            <button id="stakeBtn">Stake Now</button> 
+        </div> 
+    </div>
+     <script src="https://cdn.jsdelivr.net/npm/firebase@9.6.1/firebase-app.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/firebase@9.6.1/firebase-database.js"></script>
+       <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter"></script>
+       <script type="module" src="app.js"></script>
+
+     </body> 
+     </html>
