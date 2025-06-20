@@ -10,5 +10,9 @@
         ".write": "auth != null && auth.uid === newData.child('wallet').val()"
       }
     }
+  },
+    "withdrawalRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.wallet != null"
+    }
   }
-}

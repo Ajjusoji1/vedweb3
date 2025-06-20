@@ -128,32 +128,6 @@
 
 
 
-  
- 
-  
- 
-
- <!-- 🔥 Reward Summary Card -->
-
- <div class="reward-summary" style="margin-top: 20px; font-size: large; font-style: oblique;">
-    <h2>🏆 Rewards Overview</h2> 
-    <p>Stake Rewards (Total): <span id="totalStakeReward">⏳</span></p> 
-    <p>Stake Rewards (Claimed): <span id="claimedStakeReward">⏳</span></p>
-     <p>Stake Rewards (Pending): <span id="pendingStakeReward">⏳</span></p> 
-     <p>Referral Rewards (Total): <span id="totalReferralReward">⏳</span></p> 
-    <p>Referral Rewards (Claimed): <span id="claimedReferralReward">⏳</span></p>
-    <p>Referral Rewards (Pending): <span id="pendingReferralReward">⏳</span></p>
-
-   <!-- ✅Updated with TRX Withdraw Summary & Custom Admin Tools -->
-
-  <h3>💸 TRX Withdraw Summary</h3>
-  <ul id="trxWithdrawSummary">
-    <li>Total TRX Withdrawn: <b id="totalWithdraw">-</b> TRX</li>
-    <li>From Stake Rewards: <b id="stakeWithdraw">-</b> TRX</li>
-    <li>From Referral Rewards: <b id="referralWithdraw">-</b> TRX</li>  
-  </ul>
-</div>
-
 
 
 
@@ -188,106 +162,9 @@
 </div>
 
 
-<div class="admin-card">
-  <h3>📜 Stakes</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Wallet</th>
-        <th>Amount</th>
-        <th>Days</th>
-        <th>Reward</th>
-        <th>Created</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="stakeTableBody">
-      <!-- Stakes go here -->
-      <tr>
-        <td colspan="6">⏳ Loading...</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-
- 
-
-  <!-- 🔗 Referral Rewards -->
-  <div class="admin-card">
-    <h3>🔗 Referral Reward Percent</h3>
-    <p>Referral Reward Percentage: <span id="referralRewardPercent">5%</span></p>
-    <p>Referral Reward Total: <span id="totalReferralReward">0 TRX</span></p>
-    <p>Claimed Referral Rewards: <span id="claimedReferralReward">0 TRX</span></p>
-    <p>Pending Referral Rewards: <span id="pendingReferralReward">0 TRX</span></p>
-    <table>
-      <thead><tr><th>Referrer</th><th>Reward</th><th>Status</th></tr></thead>
-      <tbody id="referralTableBody">
-        <tr><td colspan="3">⏳ Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- 🎁 Referral Reward Manual Approval -->
-  <div class="admin-card">
-    <h3>🎁 Pending Referral Rewards</h3>
-    <table id="pendingReferralTable">
-      <thead>
-        <tr><th>From</th><th>To</th><th>Amount</th><th>Reward</th><th>Action</th></tr>
-      </thead>
-      <tbody id="pendingReferralBody">
-        <tr><td colspan="5">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-
-  
-  <div class="admin-card">
-  <!-- ✅ Referral Reward Manual Approval Section -->
-<h3>Manual Referral Rewards Approval</h3>
-<table border="1" id="pendingReferralTable">
-  <thead>
-    <tr>
-      <th>From</th>
-      <th>To</th>
-      <th>Stake Amount</th>
-      <th>Reward Amount</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody id="pendingReferralBody">
-    <tr><td colspan="5">Loading...</td></tr>
-  </tbody>
-</table>
-
-<!-- ✅ TRX Withdraw Summary Section -->
-<h3>TRX Withdraw Summary</h3>
-<table border="1" id="withdrawTable">
-  <thead>
-    <tr>
-      <th>Wallet</th>
-      <th>Amount</th>
-      <th>Date</th>
-      <th>Status</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td colspan="5">Loading...</td></tr>
-  </tbody>
-</table>
-</div>
-</div>
-
-
-  
-
-
-
-
 
 </body>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -304,10 +181,6 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-
-
-
-
 
 
   // 🔥 Load Sales
@@ -338,6 +211,7 @@
     alert("Marked as completed");
   };
 
+
   // 📦 Load Stakes
   const stakeTable = document.getElementById("stakeTableBody");
   const refStakes = ref(db, "stakes");
@@ -359,6 +233,8 @@
       stakeTable.appendChild(tr);
     });
   });
+
+
 // 🔥 Sales Table
 onValue(refSales, (snapshot) => {
   salesTable.innerHTML = "";
@@ -378,157 +254,8 @@ onValue(refSales, (snapshot) => {
   }
 });
 
-// 📊 Stake Table & Rewards
-onValue(refStakes, (snapshot) => {
-  stakeTable.innerHTML = "";
-  const data = snapshot.val();
-  if (!data) return;
 
-  let totalReward = 0;
-  let claimedReward = 0;
-  let pendingReward = 0;
-
-  Object.values(data).forEach(stake => {
-    const tr = document.createElement("tr");
-    const created = new Date(stake.createdAt).toLocaleString();
-    tr.innerHTML = `
-      <td>${stake.wallet}</td>
-      <td>${stake.amount} TRX</td>
-      <td>${stake.days}</td>
-      <td>${stake.reward} TRX</td>
-      <td>${created}</td>
-      <td>${stake.claimed ? "✅ Claimed" : "⏳ Pending"}</td>`;
-    stakeTable.appendChild(tr);
-
-    totalReward += parseFloat(stake.reward || 0);
-    if (stake.claimed) {
-      claimedReward += parseFloat(stake.reward || 0);
-    } else {
-      pendingReward += parseFloat(stake.reward || 0);
-    }
-  });
-
-  document.getElementById("totalStakeReward").textContent = totalReward.toFixed(2) + " TRX";
-  document.getElementById("claimedStakeReward").textContent = claimedReward.toFixed(2) + " TRX";
-  document.getElementById("pendingStakeReward").textContent = pendingReward.toFixed(2) + " TRX";
-});
-
-// 💰 Referral Rewards
-const referralTable = document.getElementById("referralTableBody");
-const refReferrals = ref(db, "referralRewards");
-onValue(refReferrals, (snapshot) => {
-  referralTable.innerHTML = "";
-  const data = snapshot.val();
-  if (!data) return;
-
-  let totalReferral = 0;
-
-  Object.values(data).forEach(reward => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${reward.referrer}</td>
-      <td>${reward.reward} TRX</td>
-      <td>${reward.claimed ? "✅ Claimed" : "⏳ Pending"}</td>`;
-    referralTable.appendChild(tr);
-
-    totalReferral += parseFloat(reward.reward || 0);
-  });
-  
-  });
-// 💸 TRX Withdraw Summary
-const trxWithdrawSummary = document.getElementById("trxWithdrawSummary");
-const totalWithdraw = document.getElementById("totalWithdraw");
-const stakeWithdraw = document.getElementById("stakeWithdraw");
-const referralWithdraw = document.getElementById("referralWithdraw");
-onValue(ref(db, "withdraws"), (snapshot) => {
-  const data = snapshot.val() || {};
-  let total = 0;
-  let stakeTotal = 0;
-  let referralTotal = 0;
-
-  for (const id in data) {
-    const withdraw = data[id];
-    total += parseFloat(withdraw.amount || 0);
-    if (withdraw.type === "stake") {
-      stakeTotal += parseFloat(withdraw.amount || 0);
-    } else if (withdraw.type === "referral") {
-      referralTotal += parseFloat(withdraw.amount || 0);
-    }
-  }
-
-  totalWithdraw.textContent = total.toFixed(2);
-  stakeWithdraw.textContent = stakeTotal.toFixed(2);
-  referralWithdraw.textContent = referralTotal.toFixed(2);
-});
-
-// 🔍 Search Wallet Data
-function searchWalletData() {
-  const wallet = document.getElementById("searchWallet").value.trim();
-  if (!wallet) {
-    alert("Please enter a wallet address");
-    return;
-  }
-
-  const searchResult = document.getElementById("searchResult");
-  searchResult.innerHTML = "⏳ Searching...";
-
-  onValue(ref(db, "stakes"), (snapshot) => {
-    const data = snapshot.val();
-    if (!data) {
-      searchResult.innerHTML = "No stakes found";
-      return;
-    }
-
-    let found = false;
-    for (const id in data) {
-      const stake = data[id];
-      if (stake.wallet === wallet) {
-        found = true;
-        searchResult.innerHTML = `
-          <h3>Stake Found</h3>
-          <p>Wallet: ${stake.wallet}</p>
-          <p>Amount: ${stake.amount} TRX</p>
-          <p>Days: ${stake.days}</p>
-          <p>Reward: ${stake.reward} TRX</p>
-          <p>Status: ${stake.claimed ? "✅ Claimed" : "⏳ Pending"}</p>`;
-        break;
-      }
-    }
-
-    if (!found) {
-      searchResult.innerHTML = "No stakes found for this wallet";
-    }
-  });
-}
-  </script>
-  <script>
-    // 🔥 Load Total Referral Rewards
-    onValue(ref(db, "referralRewards"), (snapshot) => {
-      let total = 0;
-      snapshot.forEach(childSnapshot => {
-        const reward = childSnapshot.val();
-        total += parseFloat(reward.reward || 0);
-      });
-      document.getElementById("totalReferralReward").textContent = total.toFixed(2) + " TRX";
-    });
-
-    // 🔥 Load Claimed and Pending Referral Rewards
-    onValue(ref(db, "referralRewards"), (snapshot) => {
-      let claimed = 0;
-      let pending = 0;
-      snapshot.forEach(childSnapshot => {
-        const reward = childSnapshot.val();
-        if (reward.claimed) {
-          claimed += parseFloat(reward.reward || 0);
-        } else {
-          pending += parseFloat(reward.reward || 0);
-        }
-      });
-      document.getElementById("claimedReferralReward").textContent = claimed.toFixed(2) + " TRX";
-      document.getElementById("pendingReferralReward").textContent = pending.toFixed(2) + " TRX";
-    });
   </script>
 
-<script type="module" src="app.js"></script>
 
 </html>
